@@ -4,6 +4,7 @@ var express = require('express'),
 	marked = require('marked');
 	
 var contentDirectory = './content/'
+var wikiDirectory = 'wiki'
 
 var app = module.exports = express.createServer();
 
@@ -82,11 +83,14 @@ console.log(canonicalizePath('../../../../../../', 'some/path/somewhere')); // (
 console.log(canonicalizePath('../../../../../../something', 'some/path/somewhere')); // something
 console.log(canonicalizePath('', 'some/path/somewhere')); // another/path/somewhere
 console.log(canonicalizePath('some/path', '')); // some/path
-*/
 
-console.log(fixWikiLinks('this is some [[link]] text.', 'some/path')); // { wikiLinks: [ 'some/path/link' ], str: 'this is some [link](/some/path/link) text.' }
-console.log(fixWikiLinks('this is some [[nested/link]] text.', 'some/path')); // { wikiLinks: [ 'some/path/nested/link' ], str: 'this is some [link](/some/path/nested/link) text.' }
-console.log(fixWikiLinks('this is some [[../link]] text.', 'some/path')); // { wikiLinks: [ 'some/link' ], str: 'this is some [link](/some/link) text.' }
+console.log(fixWikiLinks('this is some [[link]] text.', 'some/path')); // { wikiLinks: [ 'some/path/link' ], str: 'this is some [link](/wiki/some/path/link) text.' }
+console.log(fixWikiLinks('this is some [[nested/link]] text.', 'some/path')); // { wikiLinks: [ 'some/path/nested/link' ], str: 'this is some [link](/wiki/some/path/nested/link) text.' }
+console.log(fixWikiLinks('this is some [[../link]] text.', 'some/path')); // { wikiLinks: [ 'some/link' ], str: 'this is some [link](/wiki/some/link) text.' }
+console.log(fixWikiLinks('this is some [[/something/link]] text.', 'some/path')); // { wikiLinks: [ 'something/link' ], str: 'this is some [link](/wiki/something/link) text.' }
+console.log(fixWikiLinks('this is some [[ nested/link | Other text ]] text.', 'some/path')); // { wikiLinks: [ 'wiki/some/path/nested/link' ], str: 'this is some [Other text](/something/link) text.' }
+ */
+
 
 function fixWikiLinks(str, basePath) {
     var wikiLinks = [];
@@ -94,7 +98,7 @@ function fixWikiLinks(str, basePath) {
         text   = (text || target.substring(target.lastIndexOf('/') + 1)).trim();
         target = canonicalizePath(target.trim(), basePath);
         wikiLinks.push(target);
-        return '(' + text + ', /' + target + ')';
+        return '[' + text + '](/' + wikiDirectory + '/' + target + ')';
     });
 
     return { wikiLinks: wikiLinks, str: str };
@@ -108,7 +112,7 @@ function lexer(str, basePath) {
 }
 
 function renderPage(path, layout, content) {
-    var tokens = lexer(content);
+    var tokens = lexer(content, getAllButLastPath(path));
     var title = path;
     for (var i = 0; i < tokens.length; i++) {
          if (tokens[i].type === 'heading') {
@@ -121,7 +125,7 @@ function renderPage(path, layout, content) {
     return layout.replace('{{body}}', renderedContent).replace('{{title}}', title);
 }
 
-app.get(/\/wiki\/(.+)/, function(req, res) {
+app.get(/\/' + wikiDirectory + '\/(.+)/, function(req, res) {
 	var path = req.params[0];
 	fs.readFile(contentDirectory + path + '.md', 'utf8', function(err, content) {
 		if (err) {
@@ -145,8 +149,6 @@ app.get(/\/wiki\/(.+)/, function(req, res) {
 function missingFile(res) {
 	res.send('404!');
 }
-
-//app.get('/wiki/:path', routes.getWiki);
 
 app.listen(3000);
 console.log("Express server listening on port %d in %s mode", app.address().port, app.settings.env);
