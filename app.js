@@ -89,12 +89,13 @@ console.log(fixWikiLinks('this is some [[nested/link]] text.', 'some/path')); //
 console.log(fixWikiLinks('this is some [[../link]] text.', 'some/path')); // { wikiLinks: [ 'some/link' ], str: 'this is some [link](/wiki/some/link) text.' }
 console.log(fixWikiLinks('this is some [[/something/link]] text.', 'some/path')); // { wikiLinks: [ 'something/link' ], str: 'this is some [link](/wiki/something/link) text.' }
 console.log(fixWikiLinks('this is some [[ nested/link | Other text ]] text.', 'some/path')); // { wikiLinks: [ 'wiki/some/path/nested/link' ], str: 'this is some [Other text](/something/link) text.' }
- */
+console.log(fixWikiLinks('this is some [[link]] [[with_another_link]] text.', 'some/path')); // { wikiLinks: [ 'some/path/link' ], str: 'this is some [link](/wiki/some/path/link) [with_another_link](/wiki/some/path/with_another_link) text.' }
+*/
 
 
 function fixWikiLinks(str, basePath) {
     var wikiLinks = [];
-    str = str.replace(/\[\[([^\n]*?)(?:\|([^\n]*?))?\]\]/, function(_, target, text) {
+    str = str.replace(/\[\[([^\n]*?)(?:\|([^\n]*?))?\]\]/g, function(_, target, text) {
         text   = (text || target.substring(target.lastIndexOf('/') + 1)).trim();
         target = canonicalizePath(target.trim(), basePath);
         wikiLinks.push(target);
