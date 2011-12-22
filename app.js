@@ -52,16 +52,58 @@ function locateAndRead(filename, path, continuation) {
 	});
 }
 
-function lexer(str) {
+function canonicalizePath(path, base) {
+    var parts = path.split('/'), result = ((base.length === 0 || path.charAt(0) === '/') ? [] : base.split('/').slice(0));
+    parts.forEach(function(p) {
+        if (p === '' || p === '.') {
+            // do nothing
+        }
+        else if (p === '..') {
+            if (result.length > 0)
+                result.pop();
+        }
+        else {
+            result.push(p);
+        }
+    });
+    return result.join('/');
+}
+
+/*
+To be put in a test file somewhere
+console.log(canonicalizePath('below', 'some/path/somewhere')); // some/path/somewhere/below
+console.log(canonicalizePath('below/further', 'some/path/somewhere')); // some/path/somewhere/below/further
+console.log(canonicalizePath('..', 'some/path/somewhere')); // some/path
+console.log(canonicalizePath('below/../../further', 'some/path/somewhere')); // some/path/further
+console.log(canonicalizePath('below/../../further/', 'some/path/somewhere')); // some/path/further
+console.log(canonicalizePath('/another/path/', 'some/path/somewhere')); // another/path/
+console.log(canonicalizePath('double//slash', 'some/path/somewhere')); // another/path/somewhere/double/slash
+console.log(canonicalizePath('../../../../../../', 'some/path/somewhere')); // (empty)
+console.log(canonicalizePath('../../../../../../something', 'some/path/somewhere')); // something
+console.log(canonicalizePath('', 'some/path/somewhere')); // another/path/somewhere
+console.log(canonicalizePath('some/path', '')); // some/path
+*/
+
+console.log(fixWikiLinks('this is some [[link]] text.', 'some/path')); // { wikiLinks: [ 'some/path/link' ], str: 'this is some [link](/some/path/link) text.' }
+console.log(fixWikiLinks('this is some [[nested/link]] text.', 'some/path')); // { wikiLinks: [ 'some/path/nested/link' ], str: 'this is some [link](/some/path/nested/link) text.' }
+console.log(fixWikiLinks('this is some [[../link]] text.', 'some/path')); // { wikiLinks: [ 'some/link' ], str: 'this is some [link](/some/link) text.' }
+
+function fixWikiLinks(str, basePath) {
     var wikiLinks = [];
     str = str.replace(/\[\[([^\n]*?)(?:\|([^\n]*?))?\]\]/, function(_, target, text) {
         text   = (text || target.substring(target.lastIndexOf('/') + 1)).trim();
-        target = target.trim();
-        return '(' + text + ', ' + target + ')';
+        target = canonicalizePath(target.trim(), basePath);
         wikiLinks.push(target);
+        return '(' + text + ', /' + target + ')';
     });
-    var result = marked.lexer(str);
-    result.wikiLinks = wikiLinks;
+
+    return { wikiLinks: wikiLinks, str: str };
+}
+
+function lexer(str, basePath) {
+    var fixed = fixWikiLinks(str, basePath);
+    var result = marked.lexer(fixed.str);
+    result.wikiLinks = fixed.wikiLinks;
     return result;
 }
 
